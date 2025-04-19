@@ -34,11 +34,11 @@
 
     // カメラを渋谷駅周辺に移動
     viewer.camera.flyTo({
-      destination: Cesium.Cartesian3.fromDegrees(139.701, 35.658, 1000.0)
+      destination: Cesium.Cartesian3.fromDegrees(139.700609, 35.660158, 1000.0)
     });
 
     // 看板の位置を指定（経度, 緯度, 高度）※必要に応じて変更してください
-    var billboardPosition = Cesium.Cartesian3.fromDegrees(139.701, 35.658, 50.0);
+    var billboardPosition = Cesium.Cartesian3.fromDegrees(139.700609, 35.660158, 20.0);
 
     // 地上での視点の高さ（人の目の高さ）を設定（単位：メートル）
     var eyeHeight = 1.5;
@@ -54,8 +54,8 @@
       var sampleCartographics = [];
       var angleStep = 10; // 例：10度刻み（360/10 = 36点）
       // 看板の位置の経度・緯度（例として固定値：139.701, 35.658）
-      var centerLon = 139.701;
-      var centerLat = 35.658;
+      var centerLon = 139.700609;
+      var centerLat = 35.660158;
       for (var angle = 0; angle < 360; angle += angleStep) {
         var rad = Cesium.Math.toRadians(angle);
         // おおよその変換：1度あたり111320m（経度・緯度は若干異なるので、簡易計算）
