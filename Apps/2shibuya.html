@@ -43,72 +43,63 @@
     // 地上での視点の高さ（人の目の高さ）を設定（単位：メートル）
     var eyeHeight = 1.5;
 
-    // 地上レベルで、かつ建物（PLATEAUタイル）に遮られていない視認範囲を計算し、ポリゴンとして描画する関数
+    // 半径100mの円内のグリッド点を生成し、視認範囲を計算する関数
     async function calculateVisibility() {
-      // 建物タイルセットの読み込み完了を待つ
-      await buildingTileset.readyPromise;
-
-      // サンプル点の作成
-      // （ここでは、看板の位置を中心とした半径100mの円周上に、10度刻みで点を生成しています）
-      var radius = 50; // 半径：50m
-      var sampleCartographics = [];
-      var angleStep = 1; // 例：1度刻み（360/1 = 360点）
-      // 看板の位置の経度・緯度（例として固定値：139.701, 35.658）
+      var visibleArea = [];
       var centerLon = 139.700609;
       var centerLat = 35.660158;
-      for (var angle = 0; angle < 360; angle += angleStep) {
-        var rad = Cesium.Math.toRadians(angle);
-        // おおよその変換：1度あたり111320m（経度・緯度は若干異なるので、簡易計算）
-        var deltaLon = (radius * Math.cos(rad)) / 111320.0;
-        var deltaLat = (radius * Math.sin(rad)) / 110574.0;
-        var sampleLon = centerLon + deltaLon;
-        var sampleLat = centerLat + deltaLat;
-        // 高度は 0 として Cartographic オブジェクトを作成（後で terrain でサンプリング）
-        sampleCartographics.push(Cesium.Cartographic.fromDegrees(sampleLon, sampleLat, 0));
-      }
+      var radius = 100; // 半径：100m
+      var gridSpacing = 5; // グリッド間隔：5m
 
-      // terrainProvider を用いて、各サンプル点の地形高度を取得する
-      Cesium.sampleTerrainMostDetailed(viewer.terrainProvider, sampleCartographics).then(function(updatedPositions) {
-        var visiblePositions = [];
-        updatedPositions.forEach(function(carto) {
-          // 各サンプル点の「実際の地上位置」から眼の高さを加算
-          var groundPoint = Cesium.Cartesian3.fromRadians(carto.longitude, carto.latitude, carto.height + eyeHeight);
+      // グリッド点を生成
+      for (var x = -radius; x <= radius; x += gridSpacing) {
+        for (var y = -radius; y <= radius; y += gridSpacing) {
+          // 円内の点のみを対象とする
+          if (Math.sqrt(x * x + y * y) > radius) continue;
+
+          var sampleLon = centerLon + (x / 111320.0); // 経度変換
+          var sampleLat = centerLat + (y / 110574.0); // 緯度変換
+          var sampleCartographic = Cesium.Cartographic.fromDegrees(sampleLon, sampleLat, 0);
+
+          // 地形高度を取得
+          var terrainHeight = await Cesium.sampleTerrainMostDetailed(viewer.terrainProvider, [sampleCartographic]);
+          var groundPoint = Cesium.Cartesian3.fromRadians(
+            sampleCartographic.longitude,
+            sampleCartographic.latitude,
+            terrainHeight[0].height + eyeHeight
+          );
 
           // 看板までの方向ベクトルを計算
           var direction = Cesium.Cartesian3.normalize(
             Cesium.Cartesian3.subtract(billboardPosition, groundPoint, new Cesium.Cartesian3()),
             new Cesium.Cartesian3()
           );
-          // groundPoint から看板への Ray を作成
           var ray = new Cesium.Ray(groundPoint, direction);
 
           // Ray に沿って、最初にヒットするオブジェクトを取得
           var picked = viewer.scene.pick(ray);
 
-          // picked が存在し、なおかつその primitive が建物タイルセットの一部（Cesium3DTileset）であれば、建物によって遮られていると判断
-          if (picked && picked.primitive && (picked.primitive instanceof Cesium.Cesium3DTileset)) {
-            // このサンプル点は建物に遮られているので visiblePositions に追加しない
-            return;
+          // 建物に遮られていない場合のみ視認範囲に追加
+          if (!picked || !(picked.primitive instanceof Cesium.Cesium3DTileset)) {
+            visibleArea.push(groundPoint);
           }
-          // それ以外の場合は、地上視点から看板が見えるとして、リストに追加
-          visiblePositions.push(groundPoint);
-        });
-
-        // 十分な点があれば、ポリゴンとして視認範囲を描画
-        if (visiblePositions.length > 2) {
-          viewer.entities.add({
-            name: "地上レベルの視認範囲 (建物除外)",
-            polygon: {
-              hierarchy: new Cesium.PolygonHierarchy(visiblePositions),
-              material: Cesium.Color.BLUE.withAlpha(0.5),
-              outline: true,
-              outlineColor: Cesium.Color.BLACK
-            }
-          });
-        } else {
-          console.log("十分な視認範囲のサンプル点が得られませんでした。");
         }
-      });
+      }
+
+      // 視認範囲をポリゴンとして描画
+      if (visibleArea.length > 2) {
+        viewer.entities.add({
+          name: "地上レベルの視認範囲 (円内グリッド)",
+          polygon: {
+            hierarchy: new Cesium.PolygonHierarchy(visibleArea),
+            material: Cesium.Color.BLUE.withAlpha(0.5),
+            outline: true,
+            outlineColor: Cesium.Color.BLACK
+          }
+        });
+      } else {
+        console.log("視認範囲が得られませんでした。条件を調整してください。");
+      }
     }
 
     // 関数を実行
