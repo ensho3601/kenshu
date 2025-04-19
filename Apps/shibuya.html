@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <title>看板視認範囲</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.82/Build/Cesium/Cesium.js"></script>
-    <link href="style.css" rel="stylesheet">
+    <link href="https://cesium.com/downloads/cesiumjs/releases/1.82/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
         #cesiumContainer {
             width: 100%;
@@ -18,11 +18,13 @@
     <div id="cesiumContainer"></div>
     <script>
         // Cesium Viewerの初期化
-        var viewer = new Cesium.Viewer('cesiumContainer');
+        var viewer = new Cesium.Viewer('cesiumContainer', {
+            terrainProvider: Cesium.createWorldTerrain() // 地形データを反映
+        });
 
-        // PLATEAUデータの読み込み（渋谷駅周辺）
+        // PLATEAU建物データの読み込み（渋谷駅周辺）
         var tileset = viewer.scene.primitives.add(new Cesium.Cesium3DTileset({
-            url: 'https://plateau.geospatial.jp/main/data/3d-tiles/bldg/shibuya/tileset.json'
+            url: 'https://plateau.geospatial.jp/main/data/3d-tiles/bldg/shibuya/tileset.json' // PLATEAUの建物データURL
         }));
 
         // カメラを渋谷駅周辺に移動
@@ -56,7 +58,7 @@
             }
         });
 
-        console.log("看板の視認範囲が表示されました。");
+        console.log("建物と地形を反映した看板の視認範囲が表示されました。");
     </script>
 </body>
 </html>
