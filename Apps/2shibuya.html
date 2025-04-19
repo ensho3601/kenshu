@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>看板視認範囲</title>
+    <script src="https://cesium.com/downloads/cesiumjs/releases/1.82/Build/Cesium/Cesium.js"></script>
+    <link href="https://cesium.com/downloads/cesiumjs/releases/1.82/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+    <style>
+        #cesiumContainer {
+            width: 100%;
+            height: 100vh;
+            margin: 0;
+            padding: 0;
+        }
+    </style>
+</head>
+<body>
+    <div id="cesiumContainer"></div>
+    <script>
+        // Cesium Ionのアクセストークンを設定
+        Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI5N2UyMjcwOS00MDY1LTQxYjEtYjZjMy00YTU0ZTg5MmViYWQiLCJpZCI6ODAzMDYsImlhdCI6MTY0Mjc0ODI2MX0.dkwAL1CcljUV7NA7fDbhXXnmyZQU_c-G5zRx8PtEcxE'; // ここにアクセストークンを入力
+
+        // Cesium Viewerの初期化
+        var viewer = new Cesium.Viewer('cesiumContainer', {
+            terrainProvider: Cesium.createWorldTerrain() // 地形データを反映
+        });
+
+        // PLATEAU建物データの読み込み（渋谷駅周辺）
+        var tileset = viewer.scene.primitives.add(new Cesium.Cesium3DTileset({
+            url: 'https://plateau.geospatial.jp/main/data/3d-tiles/bldg/shibuya/tileset.json' // PLATEAUの建物データURL
+        }));
+
+        // カメラを渋谷駅周辺に移動
+        viewer.camera.flyTo({
+            destination: Cesium.Cartesian3.fromDegrees(139.701, 35.658, 1000.0)
+        });
+
+        // 看板の位置を指定
+        var billboardPosition = Cesium.Cartesian3.fromDegrees(139.701, 35.658, 50.0); // 任意の位置に変更可能
+
+        // 視認範囲を計算
+        var frustum = new Cesium.PerspectiveFrustum({
+            fov: Cesium.Math.toRadians(60), // 視野角
+            aspectRatio: viewer.canvas.clientWidth / viewer.canvas.clientHeight,
+            near: 1.0,
+            far: 1000.0
+        });
+
+        // 視認範囲を地図上に描画
+        var frustumOutline = viewer.entities.add({
+            name: "視認範囲",
+            polygon: {
+                hierarchy: Cesium.Cartesian3.fromDegreesArray([
+                    139.700, 35.657,
+                    139.702, 35.659,
+                    139.703, 35.657
+                ]),
+                material: Cesium.Color.BLUE.withAlpha(0.5),
+                outline: true,
+                outlineColor: Cesium.Color.BLACK
+            }
+        });
+
+        console.log("建物と地形を反映した看板の視認範囲が表示されました。");
+    </script>
+</body>
+</html>
