@@ -29,16 +29,16 @@
     <div id="cesiumContainer"></div>
     <script>
       const viewer = new Cesium.Viewer("cesiumContainer");
-      var polygon = viewer.entities.add({
+
+var polygon = viewer.entities.add({
     name: "東京都庁",
     description: "ここは東京都庁です。",
     polygon: {
         hierarchy: Cesium.Cartesian3.fromDegreesArrayHeights([
-            139.700035,35.660469, 0,
-            139.699901,35.660234, 0,
-            139.700577,35.660042, 0,
-            139.700652,35.660321, 0,
-            139.700609,35.660382]),
+            139.69163740881, 35.68903147599, 0,
+            139.69143377086, 35.6893508559, 0,
+            139.69184361318, 35.68999687609, 0,
+            139.69203616751, 35.68909180654, 0]),
         heightReference: Cesium.HeightReference.RELATIVE_TO_GROUND,
         extrudedHeight: 200.0,
         extrudedHeightReference: Cesium.HeightReference.RELATIVE_TO_GROUND,
