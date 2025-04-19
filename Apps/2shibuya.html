@@ -44,7 +44,7 @@
                 var feature = content.getFeature(i);
 
                 // 建物の立面ポリゴンを生成
-                var vertices = feature.getGeometry(); // 頂点情報を取得（詳細はデータセットに依存）
+                var vertices = feature.getProperty(); // 頂点情報を取得（詳細はデータセットに依存）
                 if (vertices) {
                     for (var j = 0; j < vertices.length - 1; j++) {
                         var bottomVertex = vertices[j];
