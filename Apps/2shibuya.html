@@ -35,7 +35,7 @@
         // 建物の立面ポリゴンを格納する配列
         var buildingPolygons = [];
 
-        // タイルが可視化されるたびに立面ポリゴンを取得
+        // 建物の立面ポリゴン生成
         tileset.tileVisible.addEventListener(function(tile) {
             var content = tile.content;
             var featuresLength = content.featuresLength;
@@ -43,13 +43,20 @@
             for (var i = 0; i < featuresLength; i++) {
                 var feature = content.getFeature(i);
 
-                // 建物の立面ポリゴンを生成
-                var vertices = feature.getProperty(); // 頂点情報を取得（詳細はデータセットに依存）
-                if (vertices) {
-                    for (var j = 0; j < vertices.length - 1; j++) {
-                        var bottomVertex = vertices[j];
-                        var topVertex = vertices[j + 1];
-                        buildingPolygons.push([bottomVertex, topVertex]); // 立面ポリゴン
+                // 高さや位置のプロパティを取得（例: 地形座標に依存）
+                var height = feature.getProperty('height');
+                var coordinates = feature.getProperty('coordinates'); // データ構造に応じて修正
+                if (coordinates && height) {
+                    // 底面から上面への立面ポリゴンを生成
+                    for (var j = 0; j < coordinates.length - 1; j++) {
+                        var bottom1 = coordinates[j];
+                        var bottom2 = coordinates[j + 1];
+                        var top1 = Cesium.Cartesian3.fromElements(bottom1.x, bottom1.y, bottom1.z + height);
+                        var top2 = Cesium.Cartesian3.fromElements(bottom2.x, bottom2.y, bottom2.z + height);
+
+                        // 壁面の四角形を三角形に分割
+                        buildingPolygons.push([bottom1, bottom2, top1]);
+                        buildingPolygons.push([top1, bottom2, top2]);
                     }
                 }
             }
@@ -60,18 +67,16 @@
             var origin = ray.origin;
             var direction = ray.direction;
 
-            // 三角形の頂点を取得
             var v0 = triangle[0];
             var v1 = triangle[1];
             var v2 = triangle[2];
 
-            // 平面の法線を計算
             var edge1 = Cesium.Cartesian3.subtract(v1, v0, new Cesium.Cartesian3());
             var edge2 = Cesium.Cartesian3.subtract(v2, v0, new Cesium.Cartesian3());
             var h = Cesium.Cartesian3.cross(direction, edge2, new Cesium.Cartesian3());
             var a = Cesium.Cartesian3.dot(edge1, h);
 
-            if (Math.abs(a) < 1e-7) return false; // 平行判定
+            if (Math.abs(a) < 1e-7) return false; // Rayが平面に平行
 
             var f = 1.0 / a;
             var s = Cesium.Cartesian3.subtract(origin, v0, new Cesium.Cartesian3());
@@ -82,7 +87,6 @@
             var v = f * Cesium.Cartesian3.dot(direction, q);
             if (v < 0.0 || u + v > 1.0) return false;
 
-            // 距離tが正であれば交差
             var t = f * Cesium.Cartesian3.dot(edge2, q);
             return t > 0.0;
         }
@@ -90,17 +94,17 @@
         // 視認範囲を計算する関数
         async function calculateVisibility() {
             var visibleArea = [];
-            var centerLon = 139.701;
-            var centerLat = 35.658;
-            var radius = 50; // 半径：100m
-            var gridSpacing = 10; // グリッド間隔：5m
+            var centerLon = 139.700609;
+            var centerLat = 35.660158;
+            var radius = 50;
+            var gridSpacing = 5;
 
             for (var x = -radius; x <= radius; x += gridSpacing) {
                 for (var y = -radius; y <= radius; y += gridSpacing) {
                     if (Math.sqrt(x * x + y * y) > radius) continue;
 
-                    var sampleLon = centerLon + (x / 111320.0); // 経度変換
-                    var sampleLat = centerLat + (y / 110574.0); // 緯度変換
+                    var sampleLon = centerLon + (x / 111320.0);
+                    var sampleLat = centerLat + (y / 110574.0);
                     var sampleCartographic = Cesium.Cartographic.fromDegrees(sampleLon, sampleLat, 0);
 
                     // 地形高度を取得
@@ -108,17 +112,20 @@
                     var groundPoint = Cesium.Cartesian3.fromRadians(
                         sampleCartographic.longitude,
                         sampleCartographic.latitude,
-                        terrainHeight[0].height + 1.5 // 視点の高さ
+                        terrainHeight[0].height + 1.5
                     );
 
-                    // 看板までの方向を計算
+                    // 看板の位置を指定
+                    var billboardPosition = Cesium.Cartesian3.fromDegrees(centerLon, centerLat, 20.0);
+
+                    // 看板までのRayを計算
                     var direction = Cesium.Cartesian3.normalize(
                         Cesium.Cartesian3.subtract(billboardPosition, groundPoint, new Cesium.Cartesian3()),
                         new Cesium.Cartesian3()
                     );
                     var ray = new Cesium.Ray(groundPoint, direction);
 
-                    // 建物の立面ポリゴンとの交差を確認
+                    // 建物のポリゴンと交差判定
                     var isObstructed = false;
                     for (var i = 0; i < buildingPolygons.length; i++) {
                         if (rayIntersectsTriangle(ray, buildingPolygons[i])) {
@@ -137,7 +144,7 @@
             // 視認範囲をポリゴンとして描画
             if (visibleArea.length > 2) {
                 viewer.entities.add({
-                    name: "地上レベルの視認範囲 (建物遮蔽考慮)",
+                    name: "視認範囲",
                     polygon: {
                         hierarchy: new Cesium.PolygonHierarchy(visibleArea),
                         material: Cesium.Color.BLUE.withAlpha(0.5),
@@ -146,11 +153,11 @@
                     }
                 });
             } else {
-                console.log("視認範囲が得られませんでした。条件を調整してください。");
+                console.log("視認範囲が得られませんでした。");
             }
         }
 
-        // 計算関数を実行
+        // 計算を実行
         calculateVisibility();
     </script>
 </body>
