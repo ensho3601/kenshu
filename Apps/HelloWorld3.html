@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <!-- Use correct character set. -->
+    <meta charset="utf-8" />
+    <!-- Tell IE to use the latest, best version. -->
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
+    />
+    <title>Hello World!</title>
+    <script src="../Build/CesiumUnminified/Cesium.js"></script>
+    <style>
+      @import url(../Build/CesiumUnminified/Widgets/widgets.css);
+      html,
+      body,
+      #cesiumContainer {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="cesiumContainer"></div>
+    <script>
+      const viewer = new Cesium.Viewer("cesiumContainer");
+      var polygon = viewer.entities.add({
+    name: "東京都庁",
+    description: "ここは東京都庁です。",
+    polygon: {
+        hierarchy: Cesium.Cartesian3.fromDegreesArrayHeights([
+            139.700035,35.660469, 0,
+            139.699901,35.660234, 0,
+            139.700577,35.660042, 0,
+            139.700652,35.660321, 0,
+            139.700609,35.660382]),
+        heightReference: Cesium.HeightReference.RELATIVE_TO_GROUND,
+        extrudedHeight: 200.0,
+        extrudedHeightReference: Cesium.HeightReference.RELATIVE_TO_GROUND,
+        material: Cesium.Color.RED.withAlpha(0.5),
+        outline: true,
+        outlineColor: Cesium.Color.BLACK
+    }
+});
+
+viewer.camera.flyTo({
+    destination: Cesium.Cartesian3.fromDegrees(139.691734969185, 35.689513446065, 1000.0),
+});
+    </script>
+  </body>
+</html>
