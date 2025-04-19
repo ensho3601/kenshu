@@ -34,36 +34,56 @@
 
         // カメラを渋谷駅周辺に移動
         viewer.camera.flyTo({
-            destination: Cesium.Cartesian3.fromDegrees(139.700609, 35.660158, 1000.0)
+            destination: Cesium.Cartesian3.fromDegrees(139.701, 35.658, 1000.0)
         });
 
         // 看板の位置を指定
-        var billboardPosition = Cesium.Cartesian3.fromDegrees(139.700609, 35.660158, 18.0); // 任意の位置に変更可能
+        var billboardPosition = Cesium.Cartesian3.fromDegrees(139.701, 35.658, 50.0); // 看板の位置（経度, 緯度, 高さ）
+
+        // 地上の人の高さを設定
+        var personHeight = 1.5; // 地上の人の高さ（メートル）
+
+        // 視認範囲を計算する関数
+        function calculateVisibility() {
+            var visibleArea = []; // 視認可能な地上範囲を格納する配列
+
+            // サンプルポイントを生成（例: 半径100mの範囲を分割）
+            var radius = 100; // 半径（メートル）
+            var step = 10; // サンプル間隔（メートル）
+            for (var angle = 0; angle < 360; angle += 10) {
+                var radians = Cesium.Math.toRadians(angle);
+                var offsetX = radius * Math.cos(radians);
+                var offsetY = radius * Math.sin(radians);
+
+                // サンプルポイントの座標を計算
+                var samplePosition = Cesium.Cartesian3.fromDegrees(
+                    139.701 + offsetX / 111320, // 経度のオフセット（1度あたり約111.32km）
+                    35.658 + offsetY / 110574, // 緯度のオフセット（1度あたり約110.57km）
+                    personHeight // 地上の人の高さ
+                );
+
+                // 視線が遮られていないかを判定
+                var ray = new Cesium.Ray(samplePosition, billboardPosition);
+                var intersection = viewer.scene.pickFromRay(ray);
+                if (!intersection) {
+                    visibleArea.push(samplePosition);
+                }
+            }
+
+            // 視認範囲を地図上に描画
+            viewer.entities.add({
+                name: "視認範囲",
+                polygon: {
+                    hierarchy: visibleArea,
+                    material: Cesium.Color.BLUE.withAlpha(0.5),
+                    outline: true,
+                    outlineColor: Cesium.Color.BLACK
+                }
+            });
+        }
 
         // 視認範囲を計算
-        var frustum = new Cesium.PerspectiveFrustum({
-            fov: Cesium.Math.toRadians(60), // 視野角
-            aspectRatio: viewer.canvas.clientWidth / viewer.canvas.clientHeight,
-            near: 1.0,
-            far: 1000.0
-        });
-
-        // 視認範囲を地図上に描画
-        var frustumOutline = viewer.entities.add({
-            name: "視認範囲",
-            polygon: {
-                hierarchy: Cesium.Cartesian3.fromDegreesArray([
-                    139.700, 35.657,
-                    139.702, 35.659,
-                    139.703, 35.657
-                ]),
-                material: Cesium.Color.BLUE.withAlpha(0.5),
-                outline: true,
-                outlineColor: Cesium.Color.BLACK
-            }
-        });
-
-        console.log("建物と地形を反映した看板の視認範囲が表示されました。");
+        calculateVisibility();
     </script>
 </body>
 </html>
