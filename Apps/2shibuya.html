@@ -32,10 +32,9 @@
             url: 'https://assets.cms.plateau.reearth.io/assets/2a/090b53-0af1-4dac-9d77-67eddc26bf7a/13113_shibuya-ku_pref_2023_citygml_2_op_bldg_3dtiles_13113_shibuya-ku_lod2/tileset.json' // PLATEAUの建物データURL
         }));
 
-
         // カメラを渋谷駅周辺に移動
         viewer.camera.flyTo({
-            destination: Cesium.Cartesian3.fromDegrees(139.701, 35.658, 1000.0)
+            destination: Cesium.Cartesian3.fromDegrees(139.700609, 35.660158, 1000.0)
         });
 
         // 看板の位置を指定
@@ -63,10 +62,9 @@
                     personHeight // 地上の人の高さ
                 );
 
-                // Ray Castingで視線が遮られていないかを判定
-                var ray = new Cesium.Ray(samplePosition, billboardPosition);
-                var intersection = viewer.scene.pickFromRay(ray);
-                if (!intersection) {
+                // 建物のポリゴンと比較し、建物内の点を除外
+                var pickedObject = viewer.scene.pickPosition(samplePosition);
+                if (!pickedObject || pickedObject.primitive !== tileset) {
                     visibleArea.push(samplePosition);
                 }
             }
@@ -88,5 +86,6 @@
     </script>
 </body>
 </html>
+
 
 
