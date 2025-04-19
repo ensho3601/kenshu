@@ -32,16 +32,32 @@
             url: 'https://assets.cms.plateau.reearth.io/assets/2a/090b53-0af1-4dac-9d77-67eddc26bf7a/13113_shibuya-ku_pref_2023_citygml_2_op_bldg_3dtiles_13113_shibuya-ku_lod2/tileset.json' // PLATEAUの建物データURL
         }));
 
-    // カメラを渋谷駅周辺に移動
-    viewer.camera.flyTo({
-      destination: Cesium.Cartesian3.fromDegrees(139.700609, 35.660158, 1000.0)
-    });
+        // 建物ポリゴン情報を格納する配列
+        var buildingPolygons = [];
 
+        // タイルが可視化されるたびに建物ポリゴン情報を取得
+        tileset.tileVisible.addEventListener(function(tile) {
+            var content = tile.content;
+            var featuresLength = content.featuresLength;
 
-        // 看板の位置を指定（経度, 緯度, 高度）※必要に応じて変更してください
-        var billboardPosition = Cesium.Cartesian3.fromDegrees(139.700609, 35.660158, 50.0);
+            for (var i = 0; i < featuresLength; i++) {
+                var feature = content.getFeature(i);
 
-        // 地上での視点の高さ（人の目の高さ）を設定（単位：メートル）
+                // 建物のポリゴン情報を取得して配列に追加
+                var polygon = feature.getGeometry(); // ポリゴン情報の取得例
+                buildingPolygons.push(polygon);
+            }
+        });
+
+        // カメラを渋谷駅周辺に移動
+        viewer.camera.flyTo({
+            destination: Cesium.Cartesian3.fromDegrees(139.700609, 35.660158, 1000.0)
+        });
+
+        // 看板の位置を指定（経度, 緯度, 高度）
+        var billboardPosition = Cesium.Cartesian3.fromDegrees(139.700609, 35.660158, 15.0);
+
+        // 地上での視点の高さ（人の目の高さ）を設定
         var eyeHeight = 1.5;
 
         // 半径100mの円内のグリッド点を生成し、視認範囲を計算する関数
@@ -49,11 +65,8 @@
             var visibleArea = [];
             var centerLon = 139.700609;
             var centerLat = 35.660158;
-            var radius = 100; // 半径：100m
+            var radius = 50; // 半径：100m
             var gridSpacing = 5; // グリッド間隔：5m
-
-            // 建物タイルセットの読み込み完了を待つ
-            await tileset.readyPromise;
 
             // グリッド点を生成
             for (var x = -radius; x <= radius; x += gridSpacing) {
@@ -80,11 +93,17 @@
                     );
                     var ray = new Cesium.Ray(groundPoint, direction);
 
-                    // Ray に沿って、最初にヒットするオブジェクトを取得
-                    var picked = viewer.scene.pickFromRay(ray);
+                    // ポリゴン情報と照合して遮蔽を判定
+                    var isObstructed = false;
+                    for (var i = 0; i < buildingPolygons.length; i++) {
+                        if (/* ray が buildingPolygons[i] に交差 */) {
+                            isObstructed = true;
+                            break;
+                        }
+                    }
 
-                    // 建物タイルセットに遮られていない場合のみ視認範囲に追加
-                    if (!picked || !(picked.primitive instanceof Cesium.Cesium3DTileset)) {
+                    // 遮蔽されていない場合のみ視認範囲に追加
+                    if (!isObstructed) {
                         visibleArea.push(groundPoint);
                     }
                 }
