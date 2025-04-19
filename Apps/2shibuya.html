@@ -32,60 +32,88 @@
             url: 'https://assets.cms.plateau.reearth.io/assets/2a/090b53-0af1-4dac-9d77-67eddc26bf7a/13113_shibuya-ku_pref_2023_citygml_2_op_bldg_3dtiles_13113_shibuya-ku_lod2/tileset.json' // PLATEAUの建物データURL
         }));
 
-        // カメラを渋谷駅周辺に移動
-        viewer.camera.flyTo({
-            destination: Cesium.Cartesian3.fromDegrees(139.700609, 35.660158, 1000.0)
+    // カメラを渋谷駅周辺に移動
+    viewer.camera.flyTo({
+      destination: Cesium.Cartesian3.fromDegrees(139.701, 35.658, 1000.0)
+    });
+
+    // 看板の位置を指定（経度, 緯度, 高度）※必要に応じて変更してください
+    var billboardPosition = Cesium.Cartesian3.fromDegrees(139.701, 35.658, 50.0);
+
+    // 地上での視点の高さ（人の目の高さ）を設定（単位：メートル）
+    var eyeHeight = 1.5;
+
+    // 地上レベルで、かつ建物（PLATEAUタイル）に遮られていない視認範囲を計算し、ポリゴンとして描画する関数
+    async function calculateVisibility() {
+      // 建物タイルセットの読み込み完了を待つ
+      await buildingTileset.readyPromise;
+
+      // サンプル点の作成
+      // （ここでは、看板の位置を中心とした半径100mの円周上に、10度刻みで点を生成しています）
+      var radius = 100; // 半径：100m
+      var sampleCartographics = [];
+      var angleStep = 10; // 例：10度刻み（360/10 = 36点）
+      // 看板の位置の経度・緯度（例として固定値：139.701, 35.658）
+      var centerLon = 139.701;
+      var centerLat = 35.658;
+      for (var angle = 0; angle < 360; angle += angleStep) {
+        var rad = Cesium.Math.toRadians(angle);
+        // おおよその変換：1度あたり111320m（経度・緯度は若干異なるので、簡易計算）
+        var deltaLon = (radius * Math.cos(rad)) / 111320.0;
+        var deltaLat = (radius * Math.sin(rad)) / 110574.0;
+        var sampleLon = centerLon + deltaLon;
+        var sampleLat = centerLat + deltaLat;
+        // 高度は 0 として Cartographic オブジェクトを作成（後で terrain でサンプリング）
+        sampleCartographics.push(Cesium.Cartographic.fromDegrees(sampleLon, sampleLat, 0));
+      }
+
+      // terrainProvider を用いて、各サンプル点の地形高度を取得する
+      Cesium.sampleTerrainMostDetailed(viewer.terrainProvider, sampleCartographics).then(function(updatedPositions) {
+        var visiblePositions = [];
+        updatedPositions.forEach(function(carto) {
+          // 各サンプル点の「実際の地上位置」から眼の高さを加算
+          var groundPoint = Cesium.Cartesian3.fromRadians(carto.longitude, carto.latitude, carto.height + eyeHeight);
+
+          // 看板までの方向ベクトルを計算
+          var direction = Cesium.Cartesian3.normalize(
+            Cesium.Cartesian3.subtract(billboardPosition, groundPoint, new Cesium.Cartesian3()),
+            new Cesium.Cartesian3()
+          );
+          // groundPoint から看板への Ray を作成
+          var ray = new Cesium.Ray(groundPoint, direction);
+
+          // Ray に沿って、最初にヒットするオブジェクトを取得
+          var picked = viewer.scene.pick(ray);
+
+          // picked が存在し、なおかつその primitive が建物タイルセットの一部（Cesium3DTileset）であれば、建物によって遮られていると判断
+          if (picked && picked.primitive && (picked.primitive instanceof Cesium.Cesium3DTileset)) {
+            // このサンプル点は建物に遮られているので visiblePositions に追加しない
+            return;
+          }
+          // それ以外の場合は、地上視点から看板が見えるとして、リストに追加
+          visiblePositions.push(groundPoint);
         });
 
-        // 看板の位置を指定
-        var billboardPosition = Cesium.Cartesian3.fromDegrees(139.700609, 35.660158, 10.0); // 看板の位置（経度, 緯度, 高さ）
-
-        // 地上の人の高さを設定
-        var personHeight = 1.5; // 地上の人の高さ（メートル）
-
-        // 視認範囲を計算する関数
-        function calculateVisibility() {
-            var visibleArea = []; // 視認可能な地上範囲を格納する配列
-
-            // サンプルポイントを生成（例: 半径100mの範囲を分割）
-            var radius = 100; // 半径（メートル）
-            var step = 10; // サンプル間隔（メートル）
-            for (var angle = 0; angle < 360; angle += 10) {
-                var radians = Cesium.Math.toRadians(angle);
-                var offsetX = radius * Math.cos(radians);
-                var offsetY = radius * Math.sin(radians);
-
-                // サンプルポイントの座標を計算（地上レベル）
-                var samplePosition = Cesium.Cartesian3.fromDegrees(
-                    139.700609 + offsetX / 111320, // 経度のオフセット（1度あたり約111.32km）
-                    35.660158 + offsetY / 110574, // 緯度のオフセット（1度あたり約110.57km）
-                    personHeight // 地上の人の高さ
-                );
-
-                // 建物のポリゴンと比較し、建物内の点を除外
-                var pickedObject = viewer.scene.pickPosition(samplePosition);
-                if (!pickedObject || pickedObject.primitive !== tileset) {
-                    visibleArea.push(samplePosition);
-                }
+        // 十分な点があれば、ポリゴンとして視認範囲を描画
+        if (visiblePositions.length > 2) {
+          viewer.entities.add({
+            name: "地上レベルの視認範囲 (建物除外)",
+            polygon: {
+              hierarchy: new Cesium.PolygonHierarchy(visiblePositions),
+              material: Cesium.Color.BLUE.withAlpha(0.5),
+              outline: true,
+              outlineColor: Cesium.Color.BLACK
             }
-
-            // 視認範囲を地図上に描画
-            viewer.entities.add({
-                name: "地上レベルの視認範囲",
-                polygon: {
-                    hierarchy: visibleArea,
-                    material: Cesium.Color.BLUE.withAlpha(0.5),
-                    outline: true,
-                    outlineColor: Cesium.Color.BLACK
-                }
-            });
+          });
+        } else {
+          console.log("十分な視認範囲のサンプル点が得られませんでした。");
         }
+      });
+    }
 
-        // 視認範囲を計算
-        calculateVisibility();
-    </script>
+    // 関数を実行
+    calculateVisibility();
+  </script>
 </body>
 </html>
-
-
-
+        
