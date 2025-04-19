@@ -17,6 +17,9 @@
 <body>
     <div id="cesiumContainer"></div>
     <script>
+        // Cesium Ionのアクセストークンを設定
+        Cesium.Ion.defaultAccessToken = 'YOUR_ACCESS_TOKEN_HERE'; // ここにアクセストークンを入力
+
         // Cesium Viewerの初期化
         var viewer = new Cesium.Viewer('cesiumContainer', {
             terrainProvider: Cesium.createWorldTerrain() // 地形データを反映
